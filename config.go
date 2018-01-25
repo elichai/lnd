@@ -79,7 +79,7 @@ var (
 	ltcdHomeDir            = btcutil.AppDataDir("ltcd", false)
 	defaultLtcdRPCCertFile = filepath.Join(ltcdHomeDir, "rpc.cert")
 
-	bitcoindHomeDir = btcutil.AppDataDir("bitcoin", false)
+	defaultbitcoindHomeDir = btcutil.AppDataDir("bitcoin", false)
 )
 
 type chainConfig struct {
@@ -117,6 +117,7 @@ type btcdConfig struct {
 }
 
 type bitcoindConfig struct {
+	bitcoindHomeDir string `long:"homedir" description:"The directory that stores bitcoind configurations and data"`
 	RPCHost string `long:"rpchost" description:"The daemon's rpc listening address. If a port is omitted, then the default port for the selected chain parameters will be used."`
 	RPCUser string `long:"rpcuser" description:"Username for RPC connections"`
 	RPCPass string `long:"rpcpass" default-mask:"-" description:"Password for RPC connections"`
@@ -213,6 +214,7 @@ func loadConfig() (*config, error) {
 		},
 		BitcoindMode: &bitcoindConfig{
 			RPCHost: defaultRPCHost,
+			bitcoindHomeDir: defaultbitcoindHomeDir,
 		},
 		Litecoin: &chainConfig{
 			MinHTLC:       defaultLitecoinMinHTLCMSat,
@@ -666,7 +668,7 @@ func parseRPCParams(cConfig *chainConfig, nodeConfig interface{}, net chainCode,
 			confFile = "btcd"
 		case "bitcoind":
 			daemonName = "bitcoind"
-			homeDir = bitcoindHomeDir
+			homeDir = nodeConfig.(*bitcoindConfig).bitcoindHomeDir
 			confFile = "bitcoin"
 		}
 	case litecoinChain:
@@ -698,7 +700,7 @@ func parseRPCParams(cConfig *chainConfig, nodeConfig interface{}, net chainCode,
 		rpcUser, rpcPass, zmqPath, err := extractBitcoindRPCParams(confFile)
 		if err != nil {
 			return fmt.Errorf("unable to extract RPC credentials:"+
-				" %v, cannot start w/o RPC connection",
+				" %v, cannot start w/o RPC connection" + nConf.bitcoindHomeDir,
 				err)
 		}
 		nConf.RPCUser, nConf.RPCPass, nConf.ZMQPath = rpcUser, rpcPass, zmqPath
@@ -784,7 +786,7 @@ func extractBitcoindRPCParams(bitcoindConfigPath string) (string, string, string
 	}
 	zmqPathSubmatches := zmqPathRE.FindSubmatch(configContents)
 	if len(zmqPathSubmatches) < 2 {
-		return "", "", "", fmt.Errorf("unable to find zmqpubrawblock in config")
+		return "", "", "", fmt.Errorf("unable to find zmqpubrawblock in config " + bitcoindConfigPath)
 	}
 
 	// Next, we'll try to find an auth cookie. We need to detect the chain
